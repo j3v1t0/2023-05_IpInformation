@@ -16,7 +16,7 @@ public class IpResponseController {
     @Autowired
     private IpResponseService ipResponseService;
 
-    @GetMapping("{ip}")
+    @GetMapping("{ipAddress}")
     public ResponseEntity<?> getIpResponse(@PathVariable String ipAddress) throws JsonProcessingException{
         try {
             return ResponseEntity.ok(ipResponseService.findIpInfoByIpAddress(ipAddress));
