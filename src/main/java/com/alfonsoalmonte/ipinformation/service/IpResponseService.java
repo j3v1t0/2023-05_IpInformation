@@ -6,7 +6,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 public interface IpResponseService {
 
-    IpResponse findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException;
+
+    IpRequest findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException;
 
     IpResponse saveIpResponse(IpResponse ipResponse);
 }

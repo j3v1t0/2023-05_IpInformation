@@ -1,9 +1,11 @@
 package com.alfonsoalmonte.ipinformation.service.implementation;
 
+import com.alfonsoalmonte.ipinformation.dto.IpRequest;
 import com.alfonsoalmonte.ipinformation.model.IpResponse;
 import com.alfonsoalmonte.ipinformation.repository.IpResponseRepository;
 import com.alfonsoalmonte.ipinformation.service.IpResponseService;
 import com.alfonsoalmonte.ipinformation.utils.AbstractIpRequestInfo;
+import com.alfonsoalmonte.ipinformation.utils.DateTimeUtil;
 import com.alfonsoalmonte.ipinformation.utils.IpAddressValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +36,7 @@ public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseS
     }
 
     @Override
-    public IpResponse findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException {
+    public IpRequest findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException {
         if(!ipAddressValidator.isValidIpAddress(ipAddress)){
             log.error("Invalid IP Address: {}", ipAddress);
             throw new IllegalArgumentException("La dirección IP no es válida.");
@@ -83,7 +85,21 @@ public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseS
 
             getIpResponse.setId_ip(getIpResponse.getId_ip());
 
-            return getIpResponse;
+            //Hora y fecha del pais request
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of(timeZone));
+
+            IpRequest ipRequest = new IpRequest();
+            ipRequest.setIp(ip + ", current date: " + now + " Country: " + countryName);
+            ipRequest.setIsoCode(countryCode);
+            ipRequest.setLanguages(languages);
+            ipRequest.setCurrency(currency);
+
+            String formattedTime = DateTimeUtil.getCurrentArgentinaTimeFormatted();
+
+            //Hora Local del pais Argentina
+            ipRequest.setHora(formattedTime);
+
+            return ipRequest;
         }
         log.error("Error in ip response - httpStatus was: {}", response.getStatusCode());
         throw new RuntimeException("Error retrieving Ip information");

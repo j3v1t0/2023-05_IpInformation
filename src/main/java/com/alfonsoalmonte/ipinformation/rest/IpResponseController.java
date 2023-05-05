@@ -1,5 +1,7 @@
 package com.alfonsoalmonte.ipinformation.rest;
 
+import com.alfonsoalmonte.ipinformation.dto.IpRequest;
+import com.alfonsoalmonte.ipinformation.model.IpResponse;
 import com.alfonsoalmonte.ipinformation.service.IpResponseService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +21,8 @@ public class IpResponseController {
     @GetMapping("{ipAddress}")
     public ResponseEntity<?> getIpResponse(@PathVariable String ipAddress) throws JsonProcessingException{
         try {
-            return ResponseEntity.ok(ipResponseService.findIpInfoByIpAddress(ipAddress));
+            IpRequest ipRequest = ipResponseService.findIpInfoByIpAddress(ipAddress);
+            return ResponseEntity.ok(ipRequest);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
         } catch (Exception ex) {
