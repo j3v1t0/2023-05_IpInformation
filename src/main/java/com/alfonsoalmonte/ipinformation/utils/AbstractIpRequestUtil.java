@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PROTECTED)
-public abstract class AbstractIpRequestInfo {
+public abstract class AbstractIpRequestUtil {
     @Value("${countriesinfo.base-url}")
     protected String baseUrl;
 

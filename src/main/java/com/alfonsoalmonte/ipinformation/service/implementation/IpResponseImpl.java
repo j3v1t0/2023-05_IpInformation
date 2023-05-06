@@ -1,12 +1,14 @@
 package com.alfonsoalmonte.ipinformation.service.implementation;
 
 import com.alfonsoalmonte.ipinformation.dto.IpRequest;
+import com.alfonsoalmonte.ipinformation.message.IpRequestMessagePublish;
 import com.alfonsoalmonte.ipinformation.model.IpResponse;
 import com.alfonsoalmonte.ipinformation.repository.IpResponseRepository;
 import com.alfonsoalmonte.ipinformation.service.IpResponseService;
-import com.alfonsoalmonte.ipinformation.utils.AbstractIpRequestInfo;
+import com.alfonsoalmonte.ipinformation.utils.AbstractIpRequestUtil;
 import com.alfonsoalmonte.ipinformation.utils.DateTimeUtil;
-import com.alfonsoalmonte.ipinformation.utils.IpAddressValidator;
+import com.alfonsoalmonte.ipinformation.utils.DistanceUtil;
+import com.alfonsoalmonte.ipinformation.utils.IpAddressValidatorUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,28 +18,31 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Service
 @Slf4j
-public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseService {
+public class IpResponseImpl extends AbstractIpRequestUtil implements IpResponseService {
     @Autowired
     private IpResponseRepository ipResponseRepository;
     @Autowired
-    private final IpAddressValidator ipAddressValidator;
+    private final IpAddressValidatorUtil ipAddressValidatorUtil;
     @Autowired
     private RestTemplate restTemplate;
+    @Autowired
+    IpRequestMessagePublish ipRequestMessagePublish;
 
-    public IpResponseImpl(RestTemplate restTemplate, IpAddressValidator ipAddressValidator) {
+    public IpResponseImpl(RestTemplate restTemplate, IpAddressValidatorUtil ipAddressValidatorUtil) {
         super(restTemplate);
-        this.ipAddressValidator = ipAddressValidator;
+        this.ipAddressValidatorUtil = ipAddressValidatorUtil;
     }
 
     @Override
     public IpRequest findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException {
-        if(!ipAddressValidator.isValidIpAddress(ipAddress)){
+        if(!ipAddressValidatorUtil.isValidIpAddress(ipAddress)){
             log.error("Invalid IP Address: {}", ipAddress);
             throw new IllegalArgumentException("La dirección IP no es válida.");
         }
@@ -83,11 +88,15 @@ public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseS
 
             IpResponse saveIpResponse = this.saveIpResponse(getIpResponse);
 
+            //Envio el mensaje a los microservicios que tienen asignado el topic ipRequest-topic
+            ipRequestMessagePublish.sendIpAddressEvent(saveIpResponse);
+
             getIpResponse.setId_ip(getIpResponse.getId_ip());
 
             //Hora y fecha del pais request
             ZonedDateTime now = ZonedDateTime.now(ZoneId.of(timeZone));
 
+            //Construyo el body a mostrar cuando se realice el Get
             IpRequest ipRequest = new IpRequest();
             ipRequest.setIp(ip + ", current date: " + now + " Country: " + countryName);
             ipRequest.setIsoCode(countryCode);
@@ -97,7 +106,16 @@ public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseS
             String formattedTime = DateTimeUtil.getCurrentArgentinaTimeFormatted();
 
             //Hora Local del pais Argentina
-            ipRequest.setHora(formattedTime);
+            ipRequest.setTime(formattedTime);
+
+            //Calcular distance estimada desde el ip del cliente hasta argentina
+            double argLat = DistanceUtil.getARG_LATITUDE();
+            double argLon = DistanceUtil.getARG_LONGITUDE();
+            Double totalDistanceInvocation = DistanceUtil.calculateDistanceFromArgentina(latitude, longitude);
+            totalDistanceInvocation = Math.round(totalDistanceInvocation * 100) / 100d;
+            String estimatedDistance = totalDistanceInvocation + " kms (" + argLat + ", " + argLon + ") a (" + latitude + ", " + longitude + ")";
+
+            ipRequest.setEstimatedDistance(estimatedDistance);
 
             return ipRequest;
         }
@@ -106,7 +124,9 @@ public class IpResponseImpl extends AbstractIpRequestInfo implements IpResponseS
     }
 
     @Override
+    @Cacheable(cacheNames = "ipresponse", key = "#ipResponse.ip")
     public IpResponse saveIpResponse(IpResponse ipResponse) {
+        log.info("SERVICE: Get Find By Ip: {}",ipResponse.getIp());
         return ipResponseRepository.save(ipResponse);
     }
 }

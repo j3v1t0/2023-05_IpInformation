@@ -9,7 +9,7 @@ import java.net.UnknownHostException;
 
 @Component
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class IpAddressValidator {
+public class IpAddressValidatorUtil {
     public static boolean isValidIpAddress(String ip) {
         try {
             InetAddress inetAddress = InetAddress.getByName(ip);

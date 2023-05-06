@@ -14,6 +14,6 @@ public class IpRequest {
     private String isoCode;
     private String languages;
     private String currency;
-    private String hora;
+    private String time;
     private String estimatedDistance;
 }
