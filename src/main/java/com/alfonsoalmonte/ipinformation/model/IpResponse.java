@@ -23,6 +23,6 @@ public class IpResponse implements Serializable {
     private Double longitude;
     private String currency;
     private String timezone;
-
+    private boolean reserved;
 
 }

@@ -42,9 +42,9 @@ public class IpResponseImpl extends AbstractIpRequestUtil implements IpResponseS
 
     @Override
     public IpRequest findIpInfoByIpAddress(String ipAddress) throws JsonProcessingException {
-        if(!ipAddressValidatorUtil.isValidIpAddress(ipAddress)){
+        if (!ipAddressValidatorUtil.isValidIpAddress(ipAddress)) {
             log.error("Invalid IP Address: {}", ipAddress);
-            throw new IllegalArgumentException("La dirección IP no es válida.");
+            throw new IllegalArgumentException("The ip address is not válid.");
         }
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl + ipAddress + "/json/");
@@ -52,75 +52,93 @@ public class IpResponseImpl extends AbstractIpRequestUtil implements IpResponseS
 
         //Validation and
         try {
-           response = restTemplate.exchange(
+            response = restTemplate.exchange(
                     builder.toUriString(),
                     HttpMethod.GET,
                     null,
                     IpResponse.class
             );
-        }catch (RestClientException restClientException){
+        } catch (RestClientException restClientException) {
             log.error("Error in ip response - {}", restClientException.getMessage());
             throw new RuntimeException("Error retrieving Ip information");
         }
 
-        if (response.getStatusCode().is2xxSuccessful()) {
-            log.info("Successfully ip response {}", response.getBody().getIp());
+        if (response.getBody().isReserved()) {
+            log.error("Error Ip Reserved");
+            throw new RuntimeException("Error Ip Reserved");
+        }else {
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Successfully ip response {}", response.getBody().getIp());
 
-            IpResponse getIpResponse = new IpResponse();
-            String ip = response.getBody().getIp();
-            getIpResponse.setIp(ip);
-            String region = response.getBody().getRegion();
-            getIpResponse.setRegion(region);
-            String countryCode = response.getBody().getCountry_code();
-            getIpResponse.setCountry_code(countryCode);
-            String countryName = response.getBody().getCountry_name();
-            getIpResponse.setCountry_name(countryName);
-            String languages = response.getBody().getLanguages();
-            getIpResponse.setLanguages(languages);
-            String currency = response.getBody().getCurrency();
-            getIpResponse.setCurrency(currency);
-            Double latitude = response.getBody().getLatitude();
-            getIpResponse.setLatitude(latitude);
-            Double longitude = response.getBody().getLongitude();
-            getIpResponse.setLongitude(longitude);
-            String timeZone = response.getBody().getTimezone();
-            getIpResponse.setTimezone(timeZone);
+                IpResponse getIpResponse = new IpResponse();
+                String ip = response.getBody().getIp();
+                getIpResponse.setIp(ip);
+                String region = response.getBody().getRegion();
+                getIpResponse.setRegion(region);
+                String countryCode = response.getBody().getCountry_code();
+                getIpResponse.setCountry_code(countryCode);
+                String countryName = response.getBody().getCountry_name();
+                getIpResponse.setCountry_name(countryName);
+                String languages = response.getBody().getLanguages();
+                getIpResponse.setLanguages(languages);
+                String currency = response.getBody().getCurrency();
+                getIpResponse.setCurrency(currency);
+                Double latitude = response.getBody().getLatitude();
+                if (latitude == null) {
+                    log.error("Latitude is null");
+                    throw new RuntimeException("Latitude is null");
+                }
+                getIpResponse.setLatitude(latitude);
+                Double longitude = response.getBody().getLongitude();
+                if (longitude == null) {
+                    log.error("Longitude is null");
+                    throw new RuntimeException("Longitude is null");
+                }
+                getIpResponse.setLongitude(longitude);
+                String timeZone = response.getBody().getTimezone();
+                if (timeZone == null) {
+                    log.error("Timezone is null");
+                    throw new RuntimeException("Timezone is null");
+                }
+                getIpResponse.setTimezone(timeZone);
 
-            IpResponse saveIpResponse = this.saveIpResponse(getIpResponse);
+                IpResponse saveIpResponse = this.saveIpResponse(getIpResponse);
 
-            //Envio el mensaje a los microservicios que tienen asignado el topic ipRequest-topic
-            ipRequestMessagePublish.sendIpAddressEvent(saveIpResponse);
+                //Envio el mensaje a los microservicios que tienen asignado el topic ipRequest-topic
+                ipRequestMessagePublish.sendIpAddressEvent(saveIpResponse);
 
-            getIpResponse.setId_ip(getIpResponse.getId_ip());
+                getIpResponse.setId_ip(getIpResponse.getId_ip());
 
-            //Hora y fecha del pais request
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of(timeZone));
+                //Hora y fecha del pais request
+                ZonedDateTime now = ZonedDateTime.now(ZoneId.of(timeZone));
 
-            //Construyo el body a mostrar cuando se realice el Get
-            IpRequest ipRequest = new IpRequest();
-            ipRequest.setIp(ip + ", current date: " + now + " Country: " + countryName);
-            ipRequest.setIsoCode(countryCode);
-            ipRequest.setLanguages(languages);
-            ipRequest.setCurrency(currency);
+                //Construyo el body a mostrar cuando se realice el Get
+                IpRequest ipRequest = new IpRequest();
+                ipRequest.setIp(ip + ", current date: " + now + " Country: " + countryName);
+                ipRequest.setIsoCode(countryCode);
+                ipRequest.setLanguages(languages);
+                ipRequest.setCurrency(currency);
 
-            String formattedTime = DateTimeUtil.getCurrentArgentinaTimeFormatted();
+                String formattedTime = DateTimeUtil.getCurrentArgentinaTimeFormatted();
 
-            //Hora Local del pais Argentina
-            ipRequest.setTime(formattedTime);
+                //Hora Local del pais Argentina
+                ipRequest.setTime(formattedTime);
 
-            //Calcular distance estimada desde el ip del cliente hasta argentina
-            double argLat = DistanceUtil.getARG_LATITUDE();
-            double argLon = DistanceUtil.getARG_LONGITUDE();
-            Double totalDistanceInvocation = DistanceUtil.calculateDistanceFromArgentina(latitude, longitude);
-            totalDistanceInvocation = Math.round(totalDistanceInvocation * 100) / 100d;
-            String estimatedDistance = totalDistanceInvocation + " kms (" + argLat + ", " + argLon + ") a (" + latitude + ", " + longitude + ")";
+                //Calcular distance estimada desde el ip del cliente hasta argentina
+                double argLat = DistanceUtil.getARG_LATITUDE();
+                double argLon = DistanceUtil.getARG_LONGITUDE();
+                Double totalDistanceInvocation = DistanceUtil.calculateDistanceFromArgentina(latitude, longitude);
+                totalDistanceInvocation = Math.round(totalDistanceInvocation * 100) / 100d;
+                String estimatedDistance = totalDistanceInvocation + " kms (" + argLat + ", " + argLon + ") a (" + latitude + ", " + longitude + ")";
 
-            ipRequest.setEstimatedDistance(estimatedDistance);
+                ipRequest.setEstimatedDistance(estimatedDistance);
 
-            return ipRequest;
+                return ipRequest;
+            }else {
+                log.error("Error in ip response - httpStatus was: {}", response.getStatusCode());
+                throw new RuntimeException("Error retrieving Ip information");
+            }
         }
-        log.error("Error in ip response - httpStatus was: {}", response.getStatusCode());
-        throw new RuntimeException("Error retrieving Ip information");
     }
 
     @Override
@@ -132,10 +150,10 @@ public class IpResponseImpl extends AbstractIpRequestUtil implements IpResponseS
         if (ipResponse.getIp() == null || ipResponse.getIp().isEmpty()) {
             throw new IllegalArgumentException("Ip address cannot be null or empty");
         }
-        try{
-            log.info("SERVICE: Get Find By Ip: {}",ipResponse.getIp());
+        try {
+            log.info("SERVICE: Get Find By Ip: {}", ipResponse.getIp());
             return ipResponseRepository.save(ipResponse);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("An error occurred while saving the IP response", e.getMessage());
             throw new RuntimeException("Failed to save IP response", e);
         }
