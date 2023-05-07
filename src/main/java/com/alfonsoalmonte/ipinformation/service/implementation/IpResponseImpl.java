@@ -126,7 +126,19 @@ public class IpResponseImpl extends AbstractIpRequestUtil implements IpResponseS
     @Override
     @Cacheable(cacheNames = "ipresponse", key = "#ipResponse.ip")
     public IpResponse saveIpResponse(IpResponse ipResponse) {
-        log.info("SERVICE: Get Find By Ip: {}",ipResponse.getIp());
-        return ipResponseRepository.save(ipResponse);
+        if (ipResponse == null) {
+            throw new IllegalArgumentException("IpResponse cannot be null");
+        }
+        if (ipResponse.getIp() == null || ipResponse.getIp().isEmpty()) {
+            throw new IllegalArgumentException("Ip address cannot be null or empty");
+        }
+        try{
+            log.info("SERVICE: Get Find By Ip: {}",ipResponse.getIp());
+            return ipResponseRepository.save(ipResponse);
+        }catch (Exception e){
+            log.error("An error occurred while saving the IP response", e.getMessage());
+            throw new RuntimeException("Failed to save IP response", e);
+        }
+
     }
 }
